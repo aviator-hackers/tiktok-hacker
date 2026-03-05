@@ -83,36 +83,92 @@ async function initializeDatabase() {
     }
 }
 
-// Email transporter configuration
-const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: parseInt(process.env.EMAIL_PORT),
-    secure: false,
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
-    tls: {
-        rejectUnauthorized: false
-    },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000
-});
+// Email transporter configuration - MULTIPLE OPTIONS FOR RENDER
+let transporter;
 
-// Verify email configuration
-transporter.verify((error, success) => {
-    if (error) {
-        console.error('❌ Email configuration error:');
-        console.error('Error:', error.message);
-        if (error.code === 'EAUTH') {
-            console.error('⚠️ For Gmail, you MUST use an App Password, not your regular password');
-            console.error('📝 Get one at: https://myaccount.google.com/apppasswords');
+// Try to create transporter with different options
+function createTransporter() {
+    // Option 1: Gmail SMTP (might be blocked on Render)
+    const gmailTransporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+        },
+        tls: {
+            rejectUnauthorized: false
+        },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000
+    });
+
+    // Option 2: Gmail SMTP with different port (465 - SSL)
+    const gmailSSLTransporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+        },
+        tls: {
+            rejectUnauthorized: false
+        },
+        connectionTimeout: 10000
+    });
+
+    // Option 3: SendGrid (if you have API key - recommended for Render)
+    // Uncomment if you have SendGrid
+    /*
+    const sendGridTransporter = nodemailer.createTransport({
+        host: 'smtp.sendgrid.net',
+        port: 587,
+        secure: false,
+        auth: {
+            user: 'apikey',
+            pass: process.env.SENDGRID_API_KEY
         }
-    } else {
-        console.log('✅ Email server is ready to send messages');
-    }
-});
+    });
+    */
+
+    // Try Gmail SSL first (port 465) as it might work better on Render
+    console.log('🔄 Attempting to connect with Gmail SSL (port 465)...');
+    return gmailSSLTransporter;
+}
+
+transporter = createTransporter();
+
+// Verify email configuration with timeout
+async function verifyEmailConfig() {
+    return new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+            console.log('⚠️ Email verification timeout - continuing anyway');
+            resolve(false);
+        }, 5000);
+
+        transporter.verify((error, success) => {
+            clearTimeout(timeout);
+            if (error) {
+                console.error('❌ Email configuration error:');
+                console.error('Error:', error.message);
+                if (error.code === 'EAUTH') {
+                    console.error('⚠️ For Gmail, you MUST use an App Password, not your regular password');
+                    console.error('📝 Get one at: https://myaccount.google.com/apppasswords');
+                } else if (error.code === 'ETIMEDOUT' || error.message.includes('timeout')) {
+                    console.error('⚠️ Connection timeout - Render may be blocking SMTP ports');
+                    console.error('💡 Solution: Use a different email service like SendGrid or Mailgun');
+                }
+                resolve(false);
+            } else {
+                console.log('✅ Email server is ready to send messages');
+                resolve(true);
+            }
+        });
+    });
+}
 
 // Load email template
 const emailTemplatePath = path.join(__dirname, 'views', 'email-template.html');
@@ -158,8 +214,13 @@ try {
     emailTemplate = '<h1>Hello {{name}}</h1><p>You are eligible for verification under username {{username}}</p><a href="{{verificationLink}}">Verify</a>';
 }
 
-// Initialize database
-initializeDatabase();
+// Initialize database and verify email
+let emailVerified = false;
+initializeDatabase().then(() => {
+    verifyEmailConfig().then(verified => {
+        emailVerified = verified;
+    });
+});
 
 // Routes
 app.get('/', (req, res) => {
@@ -169,7 +230,6 @@ app.get('/', (req, res) => {
 // Health check endpoint
 app.get('/api/health', async (req, res) => {
     try {
-        const emailStatus = await transporter.verify().then(() => true).catch(() => false);
         let dbStatus = false;
         
         if (sql) {
@@ -184,7 +244,7 @@ app.get('/api/health', async (req, res) => {
         res.json({
             status: 'ok',
             database: dbStatus ? 'connected' : 'disconnected',
-            email: emailStatus ? 'configured' : 'error',
+            email: emailVerified ? 'configured' : 'timeout',
             timestamp: new Date().toISOString()
         });
     } catch (error) {
@@ -192,23 +252,29 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-// Test email endpoint
+// Test email endpoint - with better error handling for Render
 app.get('/api/test-email', async (req, res) => {
     try {
-        await transporter.verify();
-        
+        // Try to send a test email
         const testMailOptions = {
-            from: `"Test" <${process.env.EMAIL_USER}>`,
+            from: `"Business Verification" <${process.env.EMAIL_USER}>`,
             to: process.env.EMAIL_USER,
             subject: 'Test Email from Business Verification System',
             html: `
-                <h1>✅ Test Email Successful!</h1>
-                <p>Your email configuration is working properly.</p>
+                <h1>✅ Test Email</h1>
+                <p>If you receive this, your email is working on Render!</p>
                 <p>Time: ${new Date().toISOString()}</p>
+                <p>Server: Render</p>
             `
         };
         
-        const info = await transporter.sendMail(testMailOptions);
+        // Set a timeout for the send operation
+        const sendPromise = transporter.sendMail(testMailOptions);
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Send timeout after 15 seconds')), 15000)
+        );
+        
+        const info = await Promise.race([sendPromise, timeoutPromise]);
         
         res.json({ 
             success: true, 
@@ -219,17 +285,22 @@ app.get('/api/test-email', async (req, res) => {
         console.error('Test email failed:', error);
         
         let errorMessage = 'Email configuration failed';
+        let suggestion = '';
+        
         if (error.code === 'EAUTH') {
             errorMessage = 'Authentication failed. For Gmail, use an App Password (16 characters)';
-        } else if (error.code === 'ESOCKET') {
-            errorMessage = 'Connection failed. Check host and port settings.';
-        } else if (error.message.includes('Invalid login')) {
-            errorMessage = 'Invalid email or password.';
+            suggestion = 'Get one at: https://myaccount.google.com/apppasswords';
+        } else if (error.code === 'ETIMEDOUT' || error.message.includes('timeout')) {
+            errorMessage = 'Connection timeout - Render may be blocking SMTP ports';
+            suggestion = 'Try using port 465 (SSL) or consider using SendGrid/Mailgun instead';
+        } else if (error.message.includes('getaddrinfo')) {
+            errorMessage = 'Cannot resolve email host - check your EMAIL_HOST';
         }
 
         res.status(500).json({ 
             success: false, 
             error: errorMessage,
+            suggestion: suggestion,
             details: error.message,
             code: error.code
         });
@@ -304,10 +375,6 @@ app.post('/api/send-email', async (req, res) => {
     }
 
     try {
-        // First, verify email transporter
-        await transporter.verify();
-        console.log('✅ Transporter verified');
-
         // Prepare email content
         const verificationLink = `${process.env.APP_URL}/verify?user=${encodeURIComponent(username)}&session=${sessionId}`;
         const unsubscribeLink = `${process.env.APP_URL}/unsubscribe?email=${encodeURIComponent(email)}&session=${sessionId}`;
@@ -335,13 +402,18 @@ app.post('/api/send-email', async (req, res) => {
             }
         };
 
-        console.log('📤 Sending email to:', email);
+        console.log('📤 Attempting to send email to:', email);
 
-        // Send email
-        const info = await transporter.sendMail(mailOptions);
+        // Set a timeout for the send operation
+        const sendPromise = transporter.sendMail(mailOptions);
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Send timeout after 15 seconds')), 15000)
+        );
+        
+        const info = await Promise.race([sendPromise, timeoutPromise]);
         console.log('✅ Email sent:', info.messageId);
 
-        // Try to save to database (don't fail if DB is down)
+        // Try to save to database
         if (sql) {
             try {
                 await sql`
@@ -366,33 +438,39 @@ app.post('/api/send-email', async (req, res) => {
         console.error('Error name:', error.name);
         console.error('Error code:', error.code);
         console.error('Error message:', error.message);
-        
-        if (error.response) {
-            console.error('SMTP Response:', error.response);
-        }
 
-        // Provide specific error messages
+        // Provide specific error messages for Render
         let errorMessage = 'Failed to send email';
-        let errorDetails = error.message;
+        let suggestion = '';
         
         if (error.code === 'EAUTH') {
-            errorMessage = 'Email authentication failed. For Gmail, you must use an App Password (16 characters) from https://myaccount.google.com/apppasswords';
-            errorDetails = 'Invalid login credentials - use App Password not regular password';
-        } else if (error.code === 'ESOCKET') {
-            errorMessage = 'Cannot connect to email server. Check your network and email settings.';
-        } else if (error.code === 'EENVELOPE') {
-            errorMessage = 'Invalid recipient email address.';
-        } else if (error.message.includes('Invalid login')) {
-            errorMessage = 'Invalid email login. Please check your email and password.';
-            errorDetails = 'Use App Password for Gmail accounts with 2FA enabled';
+            errorMessage = 'Email authentication failed. Use an App Password from Google.';
+            suggestion = 'Get it at: https://myaccount.google.com/apppasswords';
+        } else if (error.code === 'ETIMEDOUT' || error.message.includes('timeout')) {
+            errorMessage = 'Connection timeout - Render blocks SMTP ports by default';
+            suggestion = 'Solution: Use SendGrid, Mailgun, or another email API service';
         } else if (error.message.includes('getaddrinfo')) {
-            errorMessage = 'Cannot resolve email host. Check EMAIL_HOST in .env';
+            errorMessage = 'Cannot connect to email server';
+            suggestion = 'Check your EMAIL_HOST in .env';
+        }
+
+        // Save failed attempt to database
+        if (sql) {
+            try {
+                await sql`
+                    INSERT INTO email_sessions (session_id, subject, recipient_name, recipient_username, recipient_email, status)
+                    VALUES (${sessionId}, ${subject}, ${name}, ${username}, ${email}, 'failed')
+                `;
+            } catch (dbError) {
+                // Ignore
+            }
         }
 
         res.status(500).json({ 
             success: false, 
             error: errorMessage,
-            details: errorDetails,
+            suggestion: suggestion,
+            details: error.message,
             code: error.code
         });
     }
@@ -441,7 +519,12 @@ app.post('/api/resend-email/:sessionId', async (req, res) => {
             }
         };
 
-        const info = await transporter.sendMail(mailOptions);
+        const sendPromise = transporter.sendMail(mailOptions);
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Send timeout after 15 seconds')), 15000)
+        );
+        
+        const info = await Promise.race([sendPromise, timeoutPromise]);
 
         try {
             await sql`
@@ -460,9 +543,15 @@ app.post('/api/resend-email/:sessionId', async (req, res) => {
 
     } catch (error) {
         console.error('Error resending email:', error);
+        
+        let errorMessage = 'Failed to resend email';
+        if (error.code === 'ETIMEDOUT') {
+            errorMessage = 'Connection timeout - Render blocks SMTP ports';
+        }
+
         res.status(500).json({ 
             success: false, 
-            error: 'Failed to resend email',
+            error: errorMessage,
             details: error.message 
         });
     }
@@ -548,15 +637,17 @@ app.get('/unsubscribe', (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`
     ╔════════════════════════════════════════╗
     ║   🚀 Email System Server Running       ║
     ╠════════════════════════════════════════╣
     ║   📍 Port: ${PORT}                      ║
     ║   📧 Email: ${process.env.EMAIL_USER}   ║
-    ║   🔗 URL: ${process.env.APP_URL}        ║
-    ║   📊 Admin: ${process.env.APP_URL}      ║
+    ║   🔗 URL: ${process.env.APP_URL || 'https://' + process.env.RENDER_EXTERNAL_URL} ║
+    ║   📊 Admin: /                          ║
     ╚════════════════════════════════════════╝
     `);
+    console.log('📡 Running on Render - Email may be blocked');
+    console.log('💡 Tip: Use SendGrid or Mailgun for better email delivery on Render');
 });
