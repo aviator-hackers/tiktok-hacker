@@ -23,7 +23,6 @@
             margin: 0 auto;
         }
 
-        /* Header */
         .header {
             background: white;
             border-radius: 15px;
@@ -53,7 +52,15 @@
             margin-top: 10px;
         }
 
-        /* Dashboard Grid */
+        .status-badge.warning {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .status-badge.error {
+            background: #dc3545;
+        }
+
         .dashboard-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -61,7 +68,6 @@
             margin-bottom: 30px;
         }
 
-        /* Cards */
         .card {
             background: white;
             border-radius: 15px;
@@ -77,7 +83,6 @@
             border-bottom: 2px solid #f0f0f0;
         }
 
-        /* Form Styles */
         .form-group {
             margin-bottom: 20px;
         }
@@ -115,7 +120,6 @@
             margin-top: 5px;
         }
 
-        /* Button Styles */
         .btn {
             padding: 14px 28px;
             border: none;
@@ -164,7 +168,6 @@
             cursor: not-allowed;
         }
 
-        /* Loading Spinner */
         .loading-spinner {
             display: inline-block;
             width: 20px;
@@ -185,7 +188,6 @@
             border-width: 2px;
         }
 
-        /* Sessions Table */
         .sessions-container {
             background: white;
             border-radius: 15px;
@@ -258,7 +260,7 @@
             font-weight: 600;
         }
 
-        .status-sent {
+        .status-sent, .status-resent {
             background: #d4edda;
             color: #155724;
         }
@@ -282,6 +284,7 @@
             padding: 5px 10px;
             border-radius: 5px;
             transition: all 0.3s;
+            margin: 0 5px;
         }
 
         .action-btn:hover {
@@ -289,7 +292,6 @@
             text-decoration: underline;
         }
 
-        /* Toast Notifications */
         .toast-container {
             position: fixed;
             top: 20px;
@@ -307,6 +309,7 @@
             align-items: center;
             gap: 15px;
             animation: slideIn 0.3s ease;
+            max-width: 400px;
         }
 
         @keyframes slideIn {
@@ -332,6 +335,10 @@
             border-left: 4px solid #17a2b8;
         }
 
+        .toast-warning {
+            border-left: 4px solid #ffc107;
+        }
+
         .toast-close {
             background: none;
             border: none;
@@ -341,7 +348,6 @@
             margin-left: auto;
         }
 
-        /* Preview Modal */
         .modal {
             display: none;
             position: fixed;
@@ -385,7 +391,38 @@
             color: #333;
         }
 
-        /* Responsive */
+        .test-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .test-section h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .config-help {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .config-help a {
+            color: #2196F3;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .config-help a:hover {
+            text-decoration: underline;
+        }
+
         @media (max-width: 768px) {
             .dashboard-grid {
                 grid-template-columns: 1fr;
@@ -401,6 +438,11 @@
 
             th, td {
                 padding: 10px;
+            }
+
+            .toast {
+                max-width: 300px;
+                font-size: 14px;
             }
         }
     </style>
@@ -419,6 +461,14 @@
             <!-- Create Session Card -->
             <div class="card">
                 <h2>✏️ Create New Session</h2>
+                
+                <!-- Email Configuration Help -->
+                <div class="config-help" id="emailHelp" style="display: none;">
+                    <strong>⚠️ Email Configuration Issue</strong>
+                    <p id="emailHelpText"></p>
+                    <a href="#" id="configHelpLink" target="_blank">Learn how to set up Gmail App Password</a>
+                </div>
+
                 <form id="emailForm">
                     <div class="form-group">
                         <label for="subject">Email Subject *</label>
@@ -452,8 +502,9 @@
                     </div>
                 </form>
 
-                <div style="margin-top: 20px;">
-                    <button class="btn btn-secondary" id="previewBtn" style="width: 100%;">👁️ Preview Email Template</button>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="btn btn-secondary" id="previewBtn" style="flex: 1;">👁️ Preview</button>
+                    <button class="btn btn-secondary" id="testEmailBtn" style="flex: 1;">📧 Test Email</button>
                 </div>
             </div>
 
@@ -475,10 +526,15 @@
                     </div>
                 </div>
 
-                <div style="border-top: 2px solid #f0f0f0; padding-top: 20px;">
-                    <h3 style="margin-bottom: 15px;">📋 Recent Activity</h3>
-                    <div id="recentActivity">
-                        <p style="color: #999; text-align: center;">No recent activity</p>
+                <div class="test-section">
+                    <h3>🔧 System Status</h3>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                        <span>Database:</span>
+                        <span id="dbStatus" style="font-weight: bold; color: #ffc107;">Checking...</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Email Service:</span>
+                        <span id="emailStatus" style="font-weight: bold; color: #ffc107;">Checking...</span>
                     </div>
                 </div>
             </div>
@@ -542,11 +598,17 @@
         const btnSpinner = document.getElementById('btnSpinner');
         const refreshBtn = document.getElementById('refreshBtn');
         const previewBtn = document.getElementById('previewBtn');
+        const testEmailBtn = document.getElementById('testEmailBtn');
         const previewModal = document.getElementById('previewModal');
         const previewFrame = document.getElementById('previewFrame');
         const closeModal = document.getElementById('closeModal');
         const sessionsBody = document.getElementById('sessionsBody');
         const serverStatus = document.getElementById('serverStatus');
+        const dbStatus = document.getElementById('dbStatus');
+        const emailStatus = document.getElementById('emailStatus');
+        const emailHelp = document.getElementById('emailHelp');
+        const emailHelpText = document.getElementById('emailHelpText');
+        const configHelpLink = document.getElementById('configHelpLink');
 
         // Input fields
         const subjectInput = document.getElementById('subject');
@@ -564,10 +626,9 @@
         const totalSent = document.getElementById('totalSent');
         const successRate = document.getElementById('successRate');
         const failedCount = document.getElementById('failedCount');
-        const recentActivity = document.getElementById('recentActivity');
 
         // Toast function
-        function showToast(message, type = 'success') {
+        function showToast(message, type = 'success', duration = 5000) {
             const toastContainer = document.getElementById('toastContainer');
             const toast = document.createElement('div');
             toast.className = `toast toast-${type}`;
@@ -578,10 +639,10 @@
 
             toastContainer.appendChild(toast);
 
-            // Auto remove after 5 seconds
+            // Auto remove
             setTimeout(() => {
                 toast.remove();
-            }, 5000);
+            }, duration);
 
             // Close button
             toast.querySelector('.toast-close').addEventListener('click', () => {
@@ -672,7 +733,6 @@
                 totalSent.textContent = '0';
                 successRate.textContent = '0%';
                 failedCount.textContent = '0';
-                recentActivity.innerHTML = '<p style="color: #999; text-align: center;">No recent activity</p>';
                 return;
             }
 
@@ -683,16 +743,74 @@
             totalSent.textContent = sent;
             successRate.textContent = rate + '%';
             failedCount.textContent = failed;
+        }
 
-            // Recent activity
-            const recent = sessions.slice(0, 3);
-            recentActivity.innerHTML = recent.map(s => `
-                <div style="margin-bottom: 10px; padding: 10px; background: #f8f9fa; border-radius: 8px;">
-                    <div style="font-weight: 600;">${s.recipient_name}</div>
-                    <div style="font-size: 12px; color: #666;">${formatDate(s.sent_at)}</div>
-                    <div><span class="status-badge-small status-${s.status}">${s.status}</span></div>
-                </div>
-            `).join('');
+        // Check system health
+        async function checkHealth() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+
+                if (data.database === 'connected') {
+                    dbStatus.textContent = '✅ Connected';
+                    dbStatus.style.color = '#28a745';
+                } else {
+                    dbStatus.textContent = '⚠️ Disconnected';
+                    dbStatus.style.color = '#ffc107';
+                }
+
+                if (data.email === 'configured') {
+                    emailStatus.textContent = '✅ Ready';
+                    emailStatus.style.color = '#28a745';
+                    emailHelp.style.display = 'none';
+                } else {
+                    emailStatus.textContent = '❌ Error';
+                    emailStatus.style.color = '#dc3545';
+                    
+                    // Show help for email configuration
+                    emailHelp.style.display = 'block';
+                    emailHelpText.textContent = 'Email service is not configured correctly. For Gmail, you need to use an App Password.';
+                    configHelpLink.href = 'https://myaccount.google.com/apppasswords';
+                }
+
+                serverStatus.textContent = '● System Online';
+                serverStatus.className = 'status-badge';
+
+            } catch (error) {
+                console.error('Health check failed:', error);
+                dbStatus.textContent = '❌ Error';
+                emailStatus.textContent = '❌ Error';
+                serverStatus.textContent = '● Server Offline';
+                serverStatus.className = 'status-badge error';
+            }
+        }
+
+        // Test email configuration
+        async function testEmailConfig() {
+            try {
+                testEmailBtn.disabled = true;
+                testEmailBtn.innerHTML = '<span class="loading-spinner"></span> Testing...';
+
+                const response = await fetch('/api/test-email');
+                const data = await response.json();
+
+                if (data.success) {
+                    showToast('✅ Test email sent successfully! Check your inbox.', 'success');
+                } else {
+                    showToast(`❌ ${data.error}`, 'error', 8000);
+                    
+                    if (data.code === 'EAUTH') {
+                        emailHelp.style.display = 'block';
+                        emailHelpText.textContent = data.details || 'Authentication failed. You need to use an App Password.';
+                    }
+                }
+            } catch (error) {
+                console.error('Test email error:', error);
+                showToast('❌ Failed to test email configuration', 'error');
+            } finally {
+                testEmailBtn.disabled = false;
+                testEmailBtn.innerHTML = '📧 Test Email';
+            }
         }
 
         // Load sessions from server
@@ -702,13 +820,9 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    sessions = data.sessions;
+                    sessions = data.sessions || [];
                     renderSessions();
                     updateStats();
-                    serverStatus.textContent = '● Server Connected';
-                    serverStatus.style.color = '#28a745';
-                } else {
-                    throw new Error(data.error || 'Failed to load sessions');
                 }
             } catch (error) {
                 console.error('Error loading sessions:', error);
@@ -719,9 +833,6 @@
                         </td>
                     </tr>
                 `;
-                serverStatus.textContent = '● Server Disconnected';
-                serverStatus.style.color = '#dc3545';
-                showToast('Failed to connect to server', 'error');
             }
         }
 
@@ -778,9 +889,9 @@
 
                 if (data.success) {
                     showToast('✅ Email resent successfully!', 'success');
-                    loadSessions(); // Refresh sessions
+                    loadSessions();
                 } else {
-                    throw new Error(data.error || 'Failed to resend email');
+                    throw new Error(data.error || data.details || 'Failed to resend email');
                 }
             } catch (error) {
                 console.error('Error resending email:', error);
@@ -824,6 +935,8 @@
                 email: emailInput.value.trim()
             };
 
+            console.log('Sending email with data:', formData);
+
             try {
                 const response = await fetch('/api/send-email', {
                     method: 'POST',
@@ -834,17 +947,35 @@
                 });
 
                 const data = await response.json();
+                console.log('Server response:', data);
 
                 if (data.success) {
                     showToast('✅ Email sent successfully!', 'success');
                     emailForm.reset();
-                    loadSessions(); // Refresh sessions
+                    loadSessions();
+                    
+                    // Show success details
+                    if (data.messageId) {
+                        console.log('Message ID:', data.messageId);
+                    }
                 } else {
-                    throw new Error(data.error || 'Failed to send email');
+                    // Show specific error message
+                    let errorMsg = data.error || 'Failed to send email';
+                    if (data.details) {
+                        errorMsg += `: ${data.details}`;
+                    }
+                    
+                    showToast(`❌ ${errorMsg}`, 'error', 8000);
+                    
+                    // Show help for common errors
+                    if (data.code === 'EAUTH') {
+                        emailHelp.style.display = 'block';
+                        emailHelpText.textContent = 'Authentication failed. You need to use an App Password for Gmail.';
+                    }
                 }
             } catch (error) {
                 console.error('Error sending email:', error);
-                showToast(error.message || 'Failed to send email', 'error');
+                showToast('❌ Network error - please check your connection', 'error');
             } finally {
                 setLoading(false);
             }
@@ -859,6 +990,9 @@
             previewFrame.src = `/preview-email?name=${encodeURIComponent(name)}&username=${encodeURIComponent(username)}&subject=${encodeURIComponent(subject)}`;
             previewModal.classList.add('active');
         });
+
+        // Test email button
+        testEmailBtn.addEventListener('click', testEmailConfig);
 
         // Close modal
         closeModal.addEventListener('click', () => {
@@ -881,10 +1015,18 @@
         });
 
         // Initial load
+        checkHealth();
         loadSessions();
 
         // Auto refresh every 30 seconds
-        setInterval(loadSessions, 30000);
+        setInterval(() => {
+            loadSessions();
+            checkHealth();
+        }, 30000);
+
+        // Make functions global for onclick handlers
+        window.resendEmail = resendEmail;
+        window.previewSession = previewSession;
     </script>
 </body>
 </html>
