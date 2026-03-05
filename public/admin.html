@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Verification - Admin Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 50px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        /* Dashboard Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+
+        .form-group input.error {
+            border-color: #dc3545;
+        }
+
+        .error-message {
+            color: #dc3545;
+            font-size: 13px;
+            margin-top: 5px;
+        }
+
+        /* Button Styles */
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 100%;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102,126,234,0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Loading Spinner */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .btn .loading-spinner {
+            width: 18px;
+            height: 18px;
+            border-width: 2px;
+        }
+
+        /* Sessions Table */
+        .sessions-container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .sessions-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .sessions-header h2 {
+            color: #333;
+            font-size: 24px;
+        }
+
+        .refresh-btn {
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .refresh-btn:hover {
+            background: #e9ecef;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 15px;
+            background: #f8f9fa;
+            color: #555;
+            font-weight: 600;
+            font-size: 14px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+            color: #666;
+        }
+
+        tr:hover td {
+            background: #f8f9fa;
+        }
+
+        .status-badge-small {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 50px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-sent {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            color: #667eea;
+            cursor: pointer;
+            font-size: 13px;
+            padding: 5px 10px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .action-btn:hover {
+            background: #f0f0f0;
+            text-decoration: underline;
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .toast {
+            background: white;
+            border-radius: 10px;
+            padding: 15px 25px;
+            margin-bottom: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast-success {
+            border-left: 4px solid #28a745;
+        }
+
+        .toast-error {
+            border-left: 4px solid #dc3545;
+        }
+
+        .toast-info {
+            border-left: 4px solid #17a2b8;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: #999;
+            cursor: pointer;
+            font-size: 18px;
+            margin-left: auto;
+        }
+
+        /* Preview Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .modal-close:hover {
+            color: #333;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            th, td {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📧 Business Verification Email System</h1>
+            <p>Send verification badges to eligible business users</p>
+            <span class="status-badge" id="serverStatus">● Checking server...</span>
+        </div>
+
+        <!-- Dashboard Grid -->
+        <div class="dashboard-grid">
+            <!-- Create Session Card -->
+            <div class="card">
+                <h2>✏️ Create New Session</h2>
+                <form id="emailForm">
+                    <div class="form-group">
+                        <label for="subject">Email Subject *</label>
+                        <input type="text" id="subject" placeholder="e.g., Your Business is Eligible for Verification" required>
+                        <div class="error-message" id="subjectError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="name">Recipient Name *</label>
+                        <input type="text" id="name" placeholder="e.g., John Doe" required>
+                        <div class="error-message" id="nameError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="username">Recipient Username *</label>
+                        <input type="text" id="username" placeholder="e.g., johndoe123" required>
+                        <div class="error-message" id="usernameError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Recipient Email *</label>
+                        <input type="email" id="email" placeholder="e.g., john@example.com" required>
+                        <div class="error-message" id="emailError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary" id="sendBtn">
+                            <span id="btnText">📤 Send Verification Email</span>
+                            <span id="btnSpinner" style="display: none;" class="loading-spinner"></span>
+                        </button>
+                    </div>
+                </form>
+
+                <div style="margin-top: 20px;">
+                    <button class="btn btn-secondary" id="previewBtn" style="width: 100%;">👁️ Preview Email Template</button>
+                </div>
+            </div>
+
+            <!-- Quick Stats Card -->
+            <div class="card">
+                <h2>📊 Quick Stats</h2>
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                        <span>Total Emails Sent:</span>
+                        <span style="font-weight: bold;" id="totalSent">0</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                        <span>Success Rate:</span>
+                        <span style="font-weight: bold; color: #28a745;" id="successRate">0%</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Failed Emails:</span>
+                        <span style="font-weight: bold; color: #dc3545;" id="failedCount">0</span>
+                    </div>
+                </div>
+
+                <div style="border-top: 2px solid #f0f0f0; padding-top: 20px;">
+                    <h3 style="margin-bottom: 15px;">📋 Recent Activity</h3>
+                    <div id="recentActivity">
+                        <p style="color: #999; text-align: center;">No recent activity</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sessions History -->
+        <div class="sessions-container">
+            <div class="sessions-header">
+                <h2>📋 Email Sessions History</h2>
+                <button class="refresh-btn" id="refreshBtn">
+                    <span>⟳</span> Refresh
+                </button>
+            </div>
+
+            <div class="table-responsive">
+                <table id="sessionsTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Recipient</th>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Subject</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sessionsBody">
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 40px; color: #999;">
+                                Loading sessions...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div class="modal" id="previewModal">
+        <div class="modal-content">
+            <button class="modal-close" id="closeModal">&times;</button>
+            <h2 style="margin-bottom: 20px;">Email Preview</h2>
+            <iframe id="previewFrame" style="width: 100%; height: 400px; border: 2px solid #f0f0f0; border-radius: 10px;"></iframe>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // State
+        let isLoading = false;
+        let sessions = [];
+
+        // DOM Elements
+        const emailForm = document.getElementById('emailForm');
+        const sendBtn = document.getElementById('sendBtn');
+        const btnText = document.getElementById('btnText');
+        const btnSpinner = document.getElementById('btnSpinner');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const previewBtn = document.getElementById('previewBtn');
+        const previewModal = document.getElementById('previewModal');
+        const previewFrame = document.getElementById('previewFrame');
+        const closeModal = document.getElementById('closeModal');
+        const sessionsBody = document.getElementById('sessionsBody');
+        const serverStatus = document.getElementById('serverStatus');
+
+        // Input fields
+        const subjectInput = document.getElementById('subject');
+        const nameInput = document.getElementById('name');
+        const usernameInput = document.getElementById('username');
+        const emailInput = document.getElementById('email');
+
+        // Error fields
+        const subjectError = document.getElementById('subjectError');
+        const nameError = document.getElementById('nameError');
+        const usernameError = document.getElementById('usernameError');
+        const emailError = document.getElementById('emailError');
+
+        // Stats elements
+        const totalSent = document.getElementById('totalSent');
+        const successRate = document.getElementById('successRate');
+        const failedCount = document.getElementById('failedCount');
+        const recentActivity = document.getElementById('recentActivity');
+
+        // Toast function
+        function showToast(message, type = 'success') {
+            const toastContainer = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <span>${message}</span>
+                <button class="toast-close">&times;</button>
+            `;
+
+            toastContainer.appendChild(toast);
+
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                toast.remove();
+            }, 5000);
+
+            // Close button
+            toast.querySelector('.toast-close').addEventListener('click', () => {
+                toast.remove();
+            });
+        }
+
+        // Set loading state
+        function setLoading(loading) {
+            isLoading = loading;
+            sendBtn.disabled = loading;
+            
+            if (loading) {
+                btnText.style.display = 'none';
+                btnSpinner.style.display = 'inline-block';
+                sendBtn.style.opacity = '0.8';
+            } else {
+                btnText.style.display = 'inline';
+                btnSpinner.style.display = 'none';
+                sendBtn.style.opacity = '1';
+            }
+        }
+
+        // Clear form errors
+        function clearErrors() {
+            subjectError.textContent = '';
+            nameError.textContent = '';
+            usernameError.textContent = '';
+            emailError.textContent = '';
+            
+            subjectInput.classList.remove('error');
+            nameInput.classList.remove('error');
+            usernameInput.classList.remove('error');
+            emailInput.classList.remove('error');
+        }
+
+        // Validate form
+        function validateForm() {
+            let isValid = true;
+            clearErrors();
+
+            if (!subjectInput.value.trim()) {
+                subjectError.textContent = 'Subject is required';
+                subjectInput.classList.add('error');
+                isValid = false;
+            }
+
+            if (!nameInput.value.trim()) {
+                nameError.textContent = 'Name is required';
+                nameInput.classList.add('error');
+                isValid = false;
+            }
+
+            if (!usernameInput.value.trim()) {
+                usernameError.textContent = 'Username is required';
+                usernameInput.classList.add('error');
+                isValid = false;
+            }
+
+            if (!emailInput.value.trim()) {
+                emailError.textContent = 'Email is required';
+                emailInput.classList.add('error');
+                isValid = false;
+            } else if (!isValidEmail(emailInput.value)) {
+                emailError.textContent = 'Please enter a valid email address';
+                emailInput.classList.add('error');
+                isValid = false;
+            }
+
+            return isValid;
+        }
+
+        // Email validation
+        function isValidEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+
+        // Format date
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString();
+        }
+
+        // Update stats
+        function updateStats() {
+            if (!sessions.length) {
+                totalSent.textContent = '0';
+                successRate.textContent = '0%';
+                failedCount.textContent = '0';
+                recentActivity.innerHTML = '<p style="color: #999; text-align: center;">No recent activity</p>';
+                return;
+            }
+
+            const sent = sessions.filter(s => s.status === 'sent' || s.status === 'resent').length;
+            const failed = sessions.filter(s => s.status === 'failed').length;
+            const rate = sessions.length ? Math.round((sent / sessions.length) * 100) : 0;
+
+            totalSent.textContent = sent;
+            successRate.textContent = rate + '%';
+            failedCount.textContent = failed;
+
+            // Recent activity
+            const recent = sessions.slice(0, 3);
+            recentActivity.innerHTML = recent.map(s => `
+                <div style="margin-bottom: 10px; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                    <div style="font-weight: 600;">${s.recipient_name}</div>
+                    <div style="font-size: 12px; color: #666;">${formatDate(s.sent_at)}</div>
+                    <div><span class="status-badge-small status-${s.status}">${s.status}</span></div>
+                </div>
+            `).join('');
+        }
+
+        // Load sessions from server
+        async function loadSessions() {
+            try {
+                const response = await fetch('/api/sessions');
+                const data = await response.json();
+
+                if (data.success) {
+                    sessions = data.sessions;
+                    renderSessions();
+                    updateStats();
+                    serverStatus.textContent = '● Server Connected';
+                    serverStatus.style.color = '#28a745';
+                } else {
+                    throw new Error(data.error || 'Failed to load sessions');
+                }
+            } catch (error) {
+                console.error('Error loading sessions:', error);
+                sessionsBody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: #dc3545;">
+                            ❌ Failed to load sessions. Please refresh.
+                        </td>
+                    </tr>
+                `;
+                serverStatus.textContent = '● Server Disconnected';
+                serverStatus.style.color = '#dc3545';
+                showToast('Failed to connect to server', 'error');
+            }
+        }
+
+        // Render sessions table
+        function renderSessions() {
+            if (!sessions.length) {
+                sessionsBody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: #999;">
+                            No email sessions found. Create your first session!
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            sessionsBody.innerHTML = sessions.map(session => `
+                <tr>
+                    <td>${formatDate(session.sent_at)}</td>
+                    <td><strong>${session.recipient_name}</strong></td>
+                    <td>@${session.recipient_username}</td>
+                    <td>${session.recipient_email}</td>
+                    <td>${session.subject.substring(0, 30)}${session.subject.length > 30 ? '...' : ''}</td>
+                    <td>
+                        <span class="status-badge-small status-${session.status}">
+                            ${session.status}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="action-btn" onclick="resendEmail('${session.session_id}')">
+                            ⟳ Resend
+                        </button>
+                        <button class="action-btn" onclick="previewSession('${session.session_id}')">
+                            👁️ Preview
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Resend email
+        async function resendEmail(sessionId) {
+            try {
+                showToast('Resending email...', 'info');
+
+                const response = await fetch(`/api/resend-email/${sessionId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showToast('✅ Email resent successfully!', 'success');
+                    loadSessions(); // Refresh sessions
+                } else {
+                    throw new Error(data.error || 'Failed to resend email');
+                }
+            } catch (error) {
+                console.error('Error resending email:', error);
+                showToast(error.message || 'Failed to resend email', 'error');
+            }
+        }
+
+        // Preview session
+        async function previewSession(sessionId) {
+            try {
+                const response = await fetch(`/api/sessions/${sessionId}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const session = data.session;
+                    previewFrame.src = `/preview-email?name=${encodeURIComponent(session.recipient_name)}&username=${encodeURIComponent(session.recipient_username)}&subject=${encodeURIComponent(session.subject)}`;
+                    previewModal.classList.add('active');
+                } else {
+                    showToast('Failed to load session preview', 'error');
+                }
+            } catch (error) {
+                console.error('Error previewing session:', error);
+                showToast('Failed to load preview', 'error');
+            }
+        }
+
+        // Handle form submission
+        emailForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!validateForm() || isLoading) {
+                return;
+            }
+
+            setLoading(true);
+
+            const formData = {
+                subject: subjectInput.value.trim(),
+                name: nameInput.value.trim(),
+                username: usernameInput.value.trim(),
+                email: emailInput.value.trim()
+            };
+
+            try {
+                const response = await fetch('/api/send-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showToast('✅ Email sent successfully!', 'success');
+                    emailForm.reset();
+                    loadSessions(); // Refresh sessions
+                } else {
+                    throw new Error(data.error || 'Failed to send email');
+                }
+            } catch (error) {
+                console.error('Error sending email:', error);
+                showToast(error.message || 'Failed to send email', 'error');
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // Preview button
+        previewBtn.addEventListener('click', () => {
+            const subject = subjectInput.value.trim() || 'Business Verification Update';
+            const name = nameInput.value.trim() || 'John Doe';
+            const username = usernameInput.value.trim() || 'johndoe123';
+            
+            previewFrame.src = `/preview-email?name=${encodeURIComponent(name)}&username=${encodeURIComponent(username)}&subject=${encodeURIComponent(subject)}`;
+            previewModal.classList.add('active');
+        });
+
+        // Close modal
+        closeModal.addEventListener('click', () => {
+            previewModal.classList.remove('active');
+        });
+
+        // Click outside modal to close
+        previewModal.addEventListener('click', (e) => {
+            if (e.target === previewModal) {
+                previewModal.classList.remove('active');
+            }
+        });
+
+        // Refresh button
+        refreshBtn.addEventListener('click', () => {
+            refreshBtn.style.opacity = '0.6';
+            loadSessions().finally(() => {
+                refreshBtn.style.opacity = '1';
+            });
+        });
+
+        // Initial load
+        loadSessions();
+
+        // Auto refresh every 30 seconds
+        setInterval(loadSessions, 30000);
+    </script>
+</body>
+</html>
